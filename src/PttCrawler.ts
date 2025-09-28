@@ -177,7 +177,26 @@ export async function getImages(pageURL: string) {
   const $ = cheerio.load(response.data);
 
   const imageLinks: string[] = [];
+  const seenLinks = new Set<string>();
   let reachedSeparator = false;
+
+  const imagePattern = /\.(jpe?g|png|gif)(?:\?.*)?$/i;
+
+  const recordImage = (candidate?: string | null) => {
+    if (!candidate) {
+      return;
+    }
+
+    const normalized = candidate.trim();
+    if (!imagePattern.test(normalized)) {
+      return;
+    }
+
+    if (!seenLinks.has(normalized)) {
+      seenLinks.add(normalized);
+      imageLinks.push(normalized);
+    }
+  };
 
   // Iterate through children of #main-content
   $('#main-content').children().each((_, element) => {
@@ -189,10 +208,19 @@ export async function getImages(pageURL: string) {
 
     // If not reached separator, collect image links
     if (!reachedSeparator) {
-      // console.log(href);
-      const link = text
-      if (link && (link.endsWith('.jpg') || link.endsWith('.jpeg') || link.endsWith('.png') || link.endsWith('.gif'))) {
-        imageLinks.push(link);
+      recordImage($(element).attr('href'));
+      recordImage($(element).attr('src'));
+
+      $(element)
+        .find('a, img')
+        .each((_, child) => {
+          recordImage($(child).attr('href'));
+          recordImage($(child).attr('src'));
+        });
+
+      const inlineLinks = text.match(/https?:\/\/\S+/g);
+      if (inlineLinks) {
+        inlineLinks.forEach((link) => recordImage(link));
       }
     }
   });
