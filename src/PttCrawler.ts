@@ -68,8 +68,7 @@ export class PttCrawler {
     return articles;
   }
 
-  private async setLastPageNumber($: cheerio.CheerioAPI) {
-
+  private setLastPageNumber($: cheerio.CheerioAPI): void {
     // Find the specific anchor tag and extract the href attribute
     const href = $('.btn-group-paging a')
       .filter((_, element) => $(element).text().includes('上頁')) // Locate the link with text "上頁"
@@ -79,7 +78,7 @@ export class PttCrawler {
     const match = href && href.match(/index(\d+)\.html/);
     const pageNumber = match ? parseInt(match[1], 10) : 10000;
     this.lastPageNumber = pageNumber + 1;
-    }
+  }
 
   // Fetch articles from a specific page
   private async fetchPage(pageURL: string): Promise<Article[]> {
