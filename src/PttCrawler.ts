@@ -96,9 +96,9 @@ export class PttCrawler {
     // Select only .r-ent elements before the .r-list-sep element
     const validEntries = $('.r-list-container .r-ent').toArray(); // Get all .r-ent elements
     const separatorIndex = $('.r-list-container .r-list-sep').index(); // Find index of .r-list-sep
+    const entriesToProcess = separatorIndex >= 0 ? validEntries.slice(0, separatorIndex) : validEntries;
 
-    // Iterate only up to the separatorIndex
-    validEntries.slice(0, separatorIndex).forEach((element) => {
+    entriesToProcess.forEach((element) => {
       const title = $(element).find('.title a').text().trim();
       const link = $(element).find('.title a').attr('href') || '';
       const author = $(element).find('.meta .author').text().trim();
