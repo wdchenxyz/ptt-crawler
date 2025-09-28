@@ -107,8 +107,8 @@ export class PttCrawler {
       const link = $(element).find('.title a').attr('href') || '';
       const author = $(element).find('.meta .author').text().trim();
       const date = $(element).find('.meta .date').text().trim();
-      const nrecText = $(element).find('.nrec .hl').text().trim();
-      const points = parseInt(nrecText) || 0; // Default to 0 if parsing fails
+      const nrecText = $(element).find('.nrec').text().trim();
+      const points = this.parsePushCount(nrecText);
 
       if (title && link) {
         articles.push({
@@ -165,6 +165,29 @@ export class PttCrawler {
 
       return matchesKeyword && matchesAuthor && matchesDate && matchesMinPushCount;
     });
+  }
+
+  private parsePushCount(pushText: string): number {
+    const normalized = pushText.trim();
+    if (!normalized) {
+      return 0;
+    }
+
+    const numericValue = parseInt(normalized, 10);
+    if (!Number.isNaN(numericValue)) {
+      return numericValue;
+    }
+
+    if (/^爆+$/u.test(normalized)) {
+      return 100;
+    }
+
+    const negativeMatch = normalized.match(/^X(\d)$/i);
+    if (negativeMatch) {
+      return -10 * parseInt(negativeMatch[1], 10);
+    }
+
+    return 0;
   }
 }
 
