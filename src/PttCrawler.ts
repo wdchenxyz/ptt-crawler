@@ -27,6 +27,10 @@ export class PttCrawler {
     this.lastPageNumber = 0;
   }
 
+  protected getCurrentDate(): Date {
+    return new Date();
+  }
+
 
   // Get articles with optional filters
   public async getArticles(pages: number = 1, filters?: FilterOptions): Promise<Article[]> {
@@ -121,18 +125,40 @@ export class PttCrawler {
   }
 
   // Apply filters to the articles
+  private parseArticleDate(rawDate: string): Date | null {
+    const match = rawDate.trim().match(/^(\d{1,2})\/(\d{1,2})$/);
+    if (!match) {
+      return null;
+    }
+
+    const month = parseInt(match[1], 10) - 1;
+    const day = parseInt(match[2], 10);
+    const currentDate = this.getCurrentDate();
+    const candidate = new Date(currentDate.getFullYear(), month, day);
+
+    if (candidate.getTime() > currentDate.getTime()) {
+      candidate.setFullYear(candidate.getFullYear() - 1);
+    }
+
+    return candidate;
+  }
+
   private applyFilters(articles: Article[], filters: FilterOptions): Article[] {
+    const startDate = filters.startDate ? new Date(filters.startDate) : null;
+    const endDate = filters.endDate ? new Date(filters.endDate) : null;
+
     return articles.filter(article => {
       const matchesKeyword = filters.keyword ? article.title.includes(filters.keyword) : true;
       const matchesAuthor = filters.author ? article.author === filters.author : true;
 
       let matchesDate = true;
       if (filters.startDate || filters.endDate) {
-        const articleDate = new Date(article.date);
-        const startDate = filters.startDate ? new Date(filters.startDate) : null;
-        const endDate = filters.endDate ? new Date(filters.endDate) : null;
-
-        matchesDate = (!startDate || articleDate >= startDate) && (!endDate || articleDate <= endDate);
+        const articleDate = this.parseArticleDate(article.date);
+        if (!articleDate) {
+          matchesDate = false;
+        } else {
+          matchesDate = (!startDate || articleDate >= startDate) && (!endDate || articleDate <= endDate);
+        }
       }
 
       const matchesMinPushCount = filters.minPushCount ? article.points >= filters.minPushCount : true;
