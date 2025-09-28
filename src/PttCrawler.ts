@@ -30,13 +30,36 @@ export class PttCrawler {
 
   // Get articles with optional filters
   public async getArticles(pages: number = 1, filters?: FilterOptions): Promise<Article[]> {
-    let articles: Article[] = [];
-
-    for (let i = 0; i < pages; i++) {
-      const pageURL = i === 0 ? `${this.baseURL}/index.html` : `${this.baseURL}/index${this.lastPageNumber - i}.html`;
-      const pageArticles = await this.fetchPage(pageURL);
-      articles = articles.concat(pageArticles);
+    if (pages <= 0) {
+      return [];
     }
+
+    const firstPageURL = `${this.baseURL}/index.html`;
+    const articleCollections: Article[][] = [];
+
+    const firstPageArticles = await this.fetchPage(firstPageURL);
+    articleCollections.push(firstPageArticles);
+
+    if (pages > 1) {
+      const pageURLs: string[] = [];
+      for (let i = 1; i < pages; i++) {
+        const pageNumber = this.lastPageNumber - i;
+        if (pageNumber < 0) {
+          break;
+        }
+        pageURLs.push(`${this.baseURL}/index${pageNumber}.html`);
+      }
+
+      const remainingArticleCollections = await Promise.all(
+        pageURLs.map((url) => this.fetchPage(url)),
+      );
+      articleCollections.push(...remainingArticleCollections);
+    }
+
+    let articles = articleCollections.reduce<Article[]>(
+      (accumulator, collection) => accumulator.concat(collection),
+      [],
+    );
 
     if (filters) {
       articles = this.applyFilters(articles, filters);
