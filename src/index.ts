@@ -1,1 +1,1 @@
-export { PttCrawler, Article, getImages } from './PttCrawler';
+export { PttCrawler, Article, ArticleComment, ArticleContent, getImages } from './PttCrawler';

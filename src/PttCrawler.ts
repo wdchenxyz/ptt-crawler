@@ -10,6 +10,18 @@ export interface Article {
   points: number;
 }
 
+export interface ArticleComment {
+  tag: string;
+  userId: string;
+  text: string;
+  timestamp: string;
+}
+
+export interface ArticleContent {
+  content: string;
+  comments: ArticleComment[];
+}
+
 interface FilterOptions {
   keyword?: string;
   author?: string;
@@ -188,6 +200,94 @@ export class PttCrawler {
     }
 
     return 0;
+  }
+
+  public async getArticleContent(articleURL: string): Promise<ArticleContent> {
+    const response = await axios.get(articleURL, {
+      headers: { 'Cookie': 'over18=1;' },
+    });
+
+    const $ = cheerio.load(response.data);
+    const mainContent = $('#main-content');
+    if (mainContent.length === 0) {
+      return { content: '', comments: [] };
+    }
+
+    const contentLines: string[] = [];
+    let reachedFooter = false;
+    const isFooterLine = (text: string) => text.startsWith('※') || text.startsWith('--');
+
+    mainContent.contents().each((_, node) => {
+      if (reachedFooter) {
+        return;
+      }
+
+      if (node.type === 'comment') {
+        return;
+      }
+
+      if (node.type === 'text') {
+        const text = (node.data ?? '').trim();
+        if (!text) {
+          return;
+        }
+
+        if (isFooterLine(text)) {
+          reachedFooter = true;
+          return;
+        }
+
+        contentLines.push(text);
+        return;
+      }
+
+      if (node.type === 'tag') {
+        const element = $(node);
+
+        if (
+          element.hasClass('article-metaline') ||
+          element.hasClass('article-metaline-right') ||
+          element.hasClass('push')
+        ) {
+          return;
+        }
+
+        if (element.is('br')) {
+          return;
+        }
+
+        const text = element.text().trim();
+        if (!text) {
+          return;
+        }
+
+        if (isFooterLine(text)) {
+          reachedFooter = true;
+          return;
+        }
+
+        contentLines.push(text);
+      }
+    });
+
+    const content = contentLines
+      .map((line) => line.replace(/\u00a0/g, ' ').trim())
+      .filter((line) => line.length > 0)
+      .join('\n');
+
+    const comments: ArticleComment[] = [];
+    mainContent.find('.push').each((_, pushElement) => {
+      const element = $(pushElement);
+      const tag = element.find('.push-tag').text().trim();
+      const userId = element.find('.push-userid').text().trim();
+      const rawContent = element.find('.push-content').text();
+      const text = rawContent.replace(/^\s*:\s*/, '').trim();
+      const timestamp = element.find('.push-ipdatetime').text().trim();
+
+      comments.push({ tag, userId, text, timestamp });
+    });
+
+    return { content, comments };
   }
 }
 
